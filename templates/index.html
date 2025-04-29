@@ -147,6 +147,12 @@
         border-radius: 10px;
         cursor: pointer;
         transition: all 0.3s ease;
+        position: relative;
+        min-height: 150px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
       }
 
       .drop-zone:hover {
@@ -155,14 +161,21 @@
       }
 
       .drop-zone.active {
-        background-color: #e8f4f8;
-        border-color: #2ecc71;
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+        border-style: solid;
+      }
+
+      .drop-zone.active p {
+        color: white;
       }
 
       .drop-zone p {
         margin-bottom: 1rem;
         font-size: 1.1rem;
         color: var(--text-light);
+        text-align: center;
+        pointer-events: none;
       }
 
       .file-name {
@@ -840,6 +853,9 @@
     </div>
 
     <script>
+      // Set initial theme
+      document.body.setAttribute("data-theme", "light");
+
       const dropZone = document.getElementById("drop-zone");
       const fileInput = document.getElementById("file-input");
       const fileNameDisplay = document.querySelector(".file-name");
@@ -848,28 +864,56 @@
       const loading = document.querySelector(".loading");
       const form = document.getElementById("upload-form");
 
+      // File upload handling
       dropZone.addEventListener("click", () => fileInput.click());
 
       fileInput.addEventListener("change", (e) => {
         handleFileSelect(e.target.files[0]);
       });
 
-      dropZone.addEventListener("dragover", (e) => {
+      // Prevent default drag behaviors
+      ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+        document.body.addEventListener(eventName, preventDefaults, false);
+      });
+
+      function preventDefaults(e) {
         e.preventDefault();
+        e.stopPropagation();
+      }
+
+      // Highlight drop zone when item is dragged over it
+      ["dragenter", "dragover"].forEach((eventName) => {
+        dropZone.addEventListener(eventName, highlight, false);
+      });
+
+      ["dragleave", "drop"].forEach((eventName) => {
+        dropZone.addEventListener(eventName, unhighlight, false);
+      });
+
+      function highlight(e) {
         dropZone.classList.add("active");
-      });
+      }
 
-      dropZone.addEventListener("dragleave", () => {
+      function unhighlight(e) {
         dropZone.classList.remove("active");
-      });
+      }
 
-      dropZone.addEventListener("drop", (e) => {
-        e.preventDefault();
-        dropZone.classList.remove("active");
-        if (e.dataTransfer.files.length) {
-          handleFileSelect(e.dataTransfer.files[0]);
+      // Handle dropped files
+      dropZone.addEventListener("drop", handleDrop, false);
+
+      function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+
+        if (files.length) {
+          handleFileSelect(files[0]);
+          // Update the file input
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(files[0]);
+          fileInput.files = dataTransfer.files;
         }
-      });
+      }
 
       function handleFileSelect(file) {
         if (file && file.type.startsWith("image/")) {
@@ -881,12 +925,21 @@
             imagePreview.style.display = "block";
           };
           reader.readAsDataURL(file);
+        } else {
+          alert("Please select an image file (JPG, PNG, JPEG)");
         }
       }
 
-      form.addEventListener("submit", () => {
+      // Form submission handling
+      form.addEventListener("submit", (e) => {
+        e.preventDefault(); // Prevent default form submission
+        if (!fileInput.files.length) {
+          alert("Please select an image first");
+          return;
+        }
         submitButton.disabled = true;
         loading.style.display = "flex";
+        form.submit(); // Submit the form programmatically
       });
 
       // Theme toggle functionality
@@ -894,14 +947,11 @@
       const themeIcon = themeToggle.querySelector("i");
 
       themeToggle.addEventListener("click", () => {
-        document.body.setAttribute(
-          "data-theme",
-          document.body.getAttribute("data-theme") === "dark" ? "light" : "dark"
-        );
+        const currentTheme = document.body.getAttribute("data-theme");
+        const newTheme = currentTheme === "dark" ? "light" : "dark";
+        document.body.setAttribute("data-theme", newTheme);
         themeIcon.className =
-          document.body.getAttribute("data-theme") === "dark"
-            ? "fas fa-sun"
-            : "fas fa-moon";
+          newTheme === "dark" ? "fas fa-sun" : "fas fa-moon";
       });
 
       // Help modal functionality
