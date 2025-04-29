@@ -12,8 +12,8 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 app = Flask(__name__)
 
-# Load your pre-trained model
-model = load_model('model/my_model.keras')
+# Lazy load model (to avoid startup delay)
+model = None
 
 @app.route('/')
 def index():
@@ -21,6 +21,8 @@ def index():
 
 @app.route('/predict', methods=['POST'])
 def predict():
+    global model
+
     if 'file' not in request.files:
         return "No file part"
     
@@ -30,14 +32,18 @@ def predict():
         return "No selected file"
     
     try:
+        # Load the model only once (lazy load)
+        if model is None:
+            model = load_model('model/my_model.keras')
+
         # Convert the uploaded file to BytesIO
         img_bytes = BytesIO(file.read())
         
         # Load and preprocess the image for prediction
-        img = image.load_img(img_bytes, target_size=(150, 150))  # Adjust target size if needed
+        img = image.load_img(img_bytes, target_size=(150, 150))
         img_array = image.img_to_array(img)
         img_array = np.expand_dims(img_array, axis=0)
-        img_array /= 255.0  # Normalize the image (if applied during training)
+        img_array /= 255.0
 
         # Make the prediction using the loaded model
         prediction = model.predict(img_array)
@@ -50,7 +56,6 @@ def predict():
         return f"Error during prediction: {str(e)}"
 
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0', port=8000) 
-
-
-
+    # Use PORT environment variable for Azure compatibility
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=True, host='0.0.0.0', port=port)
